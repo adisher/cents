@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, User, MessageSquare, CheckSquare, Paperclip, Edit, Save, X } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Calendar, User, MessageSquare, CheckSquare, Paperclip, Edit, Save, X, Lock, AlertCircle } from 'lucide-react';
 import { Task, User as UserType, TaskStage, ProjectMilestone } from '@/types';
 import TaskComments from '@/components/tasks/TaskComments';
 import TaskChecklist from '@/components/tasks/TaskChecklist';
@@ -29,6 +30,8 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
     const { t } = useTranslation();
     const [currentTask, setCurrentTask] = useState(task);
     const [taskPermissions, setTaskPermissions] = useState(permissions);
+    const [canBeStarted, setCanBeStarted] = useState(task.can_be_started ?? true);
+    const [blockingDependencies, setBlockingDependencies] = useState<Task[]>(task.blocking_dependencies ?? []);
 
     const refreshTask = async () => {
         try {
@@ -36,6 +39,8 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
             const data = await response.json();
             setCurrentTask(data.task);
             setTaskPermissions(data.permissions);
+            setCanBeStarted(data.canBeStarted ?? true);
+            setBlockingDependencies(data.blockingDependencies ?? []);
         } catch (error) {
             console.error('Failed to refresh task:', error);
         }
@@ -195,28 +200,90 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                         <div>
                             <h3 className="text-sm font-medium text-gray-900 mb-2">{t('Stage')}</h3>
                             {taskPermissions?.change_status ? (
-                                <Select value={currentTask.task_stage_id.toString()} onValueChange={handleStageChange}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="z-[9999]">
-                                        {stages.map((stage) => (
-                                            <SelectItem key={stage.id} value={stage.id.toString()}>
-                                                <div className="flex items-center space-x-2">
-                                                    <div 
-                                                        className="w-3 h-3 rounded-full" 
-                                                        style={{ backgroundColor: stage.color }}
-                                                    />
-                                                    <span>{stage.name}</span>
+                                !canBeStarted && blockingDependencies.length > 0 ? (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <div>
+                                                    <Select
+                                                        value={currentTask.task_stage_id.toString()}
+                                                        onValueChange={handleStageChange}
+                                                        disabled={true}
+                                                    >
+                                                        <SelectTrigger className="opacity-60">
+                                                            <div className="flex items-center gap-2">
+                                                                <Lock className="h-4 w-4 text-destructive" />
+                                                                <SelectValue />
+                                                            </div>
+                                                        </SelectTrigger>
+                                                        <SelectContent className="z-[9999]">
+                                                            {stages.map((stage) => (
+                                                                <SelectItem key={stage.id} value={stage.id.toString()}>
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <div
+                                                                            className="w-3 h-3 rounded-full"
+                                                                            style={{ backgroundColor: stage.color }}
+                                                                        />
+                                                                        <span>{stage.name}</span>
+                                                                    </div>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                                                        <div className="flex items-start gap-2">
+                                                            <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                                            <div>
+                                                                <p className="font-medium text-yellow-800">
+                                                                    {t('Status change blocked')}
+                                                                </p>
+                                                                <p className="text-yellow-700 text-xs mt-1">
+                                                                    {blockingDependencies.length} {blockingDependencies.length === 1 ? t('dependency') : t('dependencies')} {t('must be completed first')}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <div className="text-sm max-w-xs">
+                                                    <p className="font-medium mb-1">{t('Blocking dependencies')}:</p>
+                                                    <ul className="list-disc list-inside">
+                                                        {blockingDependencies.slice(0, 5).map((dep) => (
+                                                            <li key={dep.id}>{dep.title} ({dep.progress}%)</li>
+                                                        ))}
+                                                        {blockingDependencies.length > 5 && (
+                                                            <li>... {t('and')} {blockingDependencies.length - 5} {t('more')}</li>
+                                                        )}
+                                                    </ul>
+                                                </div>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ) : (
+                                    <Select value={currentTask.task_stage_id.toString()} onValueChange={handleStageChange}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[9999]">
+                                            {stages.map((stage) => (
+                                                <SelectItem key={stage.id} value={stage.id.toString()}>
+                                                    <div className="flex items-center space-x-2">
+                                                        <div
+                                                            className="w-3 h-3 rounded-full"
+                                                            style={{ backgroundColor: stage.color }}
+                                                        />
+                                                        <span>{stage.name}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )
                             ) : (
                                 <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                                    <div 
-                                        className="w-3 h-3 rounded-full" 
+                                    <div
+                                        className="w-3 h-3 rounded-full"
                                         style={{ backgroundColor: currentTask.task_stage?.color }}
                                     />
                                     <span>{currentTask.task_stage?.name}</span>

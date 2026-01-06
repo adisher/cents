@@ -72,13 +72,27 @@ class TaskController extends Controller
 
         // Default to kanban view and get all data without pagination
         $view = $request->get('view', 'kanban');
-        
+
         if ($view === 'kanban') {
             $tasks = $query->get();
         } else {
             $perPage = $request->get('per_page', 20);
             $perPage = in_array($perPage, [20, 50, 100]) ? $perPage : 20;
             $tasks = $query->latest()->paginate($perPage);
+        }
+
+        // Add dependency status to each task
+        if ($view === 'kanban') {
+            $tasks->each(function ($task) {
+                $task->can_be_started = $task->canBeStarted();
+                $task->blocking_dependencies = $task->getBlockingDependencies();
+            });
+        } else {
+            $tasks->getCollection()->transform(function ($task) {
+                $task->can_be_started = $task->canBeStarted();
+                $task->blocking_dependencies = $task->getBlockingDependencies();
+                return $task;
+            });
         }
 
         // Apply same access control to projects dropdown as used for task filtering
@@ -167,17 +181,7 @@ class TaskController extends Controller
         if (!$workspace || $task->project->workspace_id !== $workspace->id) {
             abort(403, 'Task not found in current workspace.');
         }
-        // Check if task has blocking dependencies
-        if (!$task->canBeStarted()) {
-            $blockingCount = $task->getBlockingDependencies()->count();
-            return back()->withErrors([
-                'error' => __('Cannot change task status. :count incomplete :dependencies must be completed first.', [
-                    'count' => $blockingCount,
-                    'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
-                ])
-            ]);
-        }
-        
+
         // Add permission flags to comments
         $task->comments->each(function($comment) use ($currentUser) {
             $comment->can_update = $comment->canBeUpdatedBy($currentUser);
@@ -303,10 +307,10 @@ class TaskController extends Controller
     public function update(Request $request, Task $task)
     {
         $this->authorizePermission('task_update');
-        
+
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
-        
+
         if (!$workspace || $task->project->workspace_id !== $workspace->id) {
             abort(403, 'Task not found in current workspace.');
         }
@@ -317,8 +321,24 @@ class TaskController extends Controller
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after:start_date',
             'assigned_to' => 'nullable|exists:users,id',
-            'milestone_id' => 'nullable|exists:project_milestones,id'
+            'milestone_id' => 'nullable|exists:project_milestones,id',
+            'task_stage_id' => 'nullable|exists:task_stages,id'
         ]);
+
+        // If task_stage_id is being updated, check dependencies
+        if (isset($validated['task_stage_id']) && $validated['task_stage_id'] != $task->task_stage_id) {
+            if (!$task->canBeStarted()) {
+                $blockingDependencies = $task->getBlockingDependencies();
+                $blockingCount = $blockingDependencies->count();
+
+                return back()->withErrors([
+                    'error' => __('Cannot change task status. :count incomplete :dependencies must be completed first.', [
+                        'count' => $blockingCount,
+                        'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
+                    ])
+                ]);
+            }
+        }
 
         $task->update($validated);
 
@@ -373,32 +393,34 @@ class TaskController extends Controller
     public function changeStage(Request $request, Task $task)
     {
         $this->authorizePermission('task_change_status');
-$user = auth()->user();
 
+        $user = auth()->user();
         $workspace = $user->currentWorkspace;
 
- 
-
         if (!$workspace || $task->project->workspace_id !== $workspace->id) {
-
             abort(403, 'Task not found in current workspace.');
-
         }
 
         $validated = $request->validate([
-
             'task_stage_id' => 'required|exists:task_stages,id'
-
         ]);
 
- 
+        // Check if task has blocking dependencies before allowing status change
+        if (!$task->canBeStarted()) {
+            $blockingDependencies = $task->getBlockingDependencies();
+            $blockingCount = $blockingDependencies->count();
+
+            return back()->withErrors([
+                'error' => __('Cannot change task status. :count incomplete :dependencies must be completed first.', [
+                    'count' => $blockingCount,
+                    'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
+                ])
+            ]);
+        }
 
         $task->update($validated);
 
- 
-
         return back()->with('success', __('Task stage updated successfully!'));
-
     }
 
  

@@ -52,6 +52,15 @@ export interface User {
     updated_at: string;
 }
 
+export interface TaskDependency {
+    id: number;
+    task_id: number;
+    depends_on_task_id: number;
+    dependency_type: 'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Task {
     id: number;
     project_id: number;
@@ -72,6 +81,10 @@ export interface Task {
             owner_id: number;
         };
     };
+    depends_on_tasks?: Task[];
+    dependent_tasks?: Task[];
+    can_be_started?: boolean;
+    blocking_dependencies?: Task[];
 }
 
 export interface TaskComment {

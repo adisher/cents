@@ -728,10 +728,12 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                 {task.title}
                                             </CardTitle>
                                             <div className="flex gap-1">
-                                                <TaskStageChanger 
-                                                    task={task} 
-                                                    stages={stages} 
-                                                    variant="badge" 
+                                                <TaskStageChanger
+                                                    task={task}
+                                                    stages={stages}
+                                                    variant="badge"
+                                                    canBeStarted={task.can_be_started}
+                                                    blockingDependencies={task.blocking_dependencies || []}
                                                 />
                                             </div>
                                         </div>

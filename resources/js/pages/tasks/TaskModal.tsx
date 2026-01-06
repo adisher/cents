@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Calendar, User, MessageSquare, CheckSquare, Paperclip, Edit, Save, X, Lock, AlertCircle } from 'lucide-react';
+import { Calendar, User, MessageSquare, CheckSquare, Paperclip, Edit, Save, X, Lock, AlertCircle, GitBranch } from 'lucide-react';
 import { Task, User as UserType, TaskStage, ProjectMilestone } from '@/types';
 import TaskComments from '@/components/tasks/TaskComments';
 import TaskChecklist from '@/components/tasks/TaskChecklist';
 import TaskAttachments from '@/components/tasks/TaskAttachments';
+import TaskDependencies from '@/components/tasks/TaskDependencies';
 import { toast } from '@/components/custom-toast';
 
 interface Props {
@@ -32,6 +33,7 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
     const [taskPermissions, setTaskPermissions] = useState(permissions);
     const [canBeStarted, setCanBeStarted] = useState(task.can_be_started ?? true);
     const [blockingDependencies, setBlockingDependencies] = useState<Task[]>(task.blocking_dependencies ?? []);
+    const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
 
     const refreshTask = async () => {
         try {
@@ -41,12 +43,18 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
             setTaskPermissions(data.permissions);
             setCanBeStarted(data.canBeStarted ?? true);
             setBlockingDependencies(data.blockingDependencies ?? []);
+            setAvailableTasks(data.availableTasks ?? []);
         } catch (error) {
             console.error('Failed to refresh task:', error);
         }
     };
 
-
+    // Load task data when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            refreshTask();
+        }
+    }, [isOpen, task.id]);
 
     const handleStageChange = (stageId: string) => {
         router.put(route('tasks.change-stage', task.id), {
@@ -148,7 +156,7 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                             </div>
                         </div>
 
-                        {/* Tabs for Comments, Checklist, Attachments */}
+                        {/* Tabs for Comments, Checklist, Attachments, Dependencies */}
                         <Tabs defaultValue="comments" className="w-full">
                             <TabsList>
                                 <TabsTrigger value="comments" className="flex items-center space-x-2">
@@ -162,6 +170,10 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                                 <TabsTrigger value="attachments" className="flex items-center space-x-2">
                                     <Paperclip className="h-4 w-4" />
                                     <span>{t('Files')} ({currentTask.attachments?.length || 0})</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="dependencies" className="flex items-center space-x-2">
+                                    <GitBranch className="h-4 w-4" />
+                                    <span>{t('Dependencies')} ({currentTask.depends_on_tasks?.length || 0})</span>
                                 </TabsTrigger>
                             </TabsList>
 
@@ -184,10 +196,21 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                             </TabsContent>
 
                             <TabsContent value="attachments" className="space-y-4">
-                                <TaskAttachments 
-                                    task={currentTask} 
-                                    attachments={currentTask.attachments || []} 
+                                <TaskAttachments
+                                    task={currentTask}
+                                    attachments={currentTask.attachments || []}
                                     availableMedia={currentTask.project?.workspace?.media || []}
+                                    onUpdate={refreshTask}
+                                />
+                            </TabsContent>
+
+                            <TabsContent value="dependencies" className="space-y-4">
+                                <TaskDependencies
+                                    task={currentTask}
+                                    availableTasks={availableTasks}
+                                    canBeStarted={canBeStarted}
+                                    blockingDependencies={blockingDependencies}
+                                    canManage={taskPermissions?.manage_dependencies ?? false}
                                     onUpdate={refreshTask}
                                 />
                             </TabsContent>

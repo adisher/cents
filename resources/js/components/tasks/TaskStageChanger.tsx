@@ -22,8 +22,8 @@ export default function TaskStageChanger({
     blockingDependencies = []
 }: Props) {
     const handleStageChange = (stageId: string) => {
-        if (!canBeStarted) {
-            return; // Don't allow change if dependencies aren't met
+        if (!canBeStarted || !task.checklists || task.checklists.length === 0) {
+            return; // Don't allow change if dependencies aren't met or no checklists
         }
         router.put(route('tasks.change-stage', task.id), {
             task_stage_id: stageId
@@ -31,7 +31,8 @@ export default function TaskStageChanger({
     };
 
     const currentStage = stages.find(s => s.id === task.task_stage_id);
-    const isBlocked = !canBeStarted && blockingDependencies.length > 0;
+    const hasNoChecklists = !task.checklists || task.checklists.length === 0;
+    const isBlocked = (!canBeStarted && blockingDependencies.length > 0) || hasNoChecklists;
 
     if (variant === 'badge') {
         return (
@@ -54,8 +55,10 @@ export default function TaskStageChanger({
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p className="text-sm">
-                                    Blocked by {blockingDependencies.length} incomplete{' '}
-                                    {blockingDependencies.length === 1 ? 'dependency' : 'dependencies'}
+                                    {hasNoChecklists
+                                        ? 'Task must have at least one checklist item'
+                                        : `Blocked by ${blockingDependencies.length} incomplete ${blockingDependencies.length === 1 ? 'dependency' : 'dependencies'}`
+                                    }
                                 </p>
                             </TooltipContent>
                         </Tooltip>
@@ -100,18 +103,26 @@ export default function TaskStageChanger({
                     </TooltipTrigger>
                     <TooltipContent>
                         <div className="text-sm">
-                            <p className="font-medium mb-1">
-                                Status change blocked by {blockingDependencies.length}{' '}
-                                {blockingDependencies.length === 1 ? 'dependency' : 'dependencies'}:
-                            </p>
-                            <ul className="list-disc list-inside">
-                                {blockingDependencies.slice(0, 3).map((dep) => (
-                                    <li key={dep.id}>{dep.title} ({dep.progress}%)</li>
-                                ))}
-                                {blockingDependencies.length > 3 && (
-                                    <li>... and {blockingDependencies.length - 3} more</li>
-                                )}
-                            </ul>
+                            {hasNoChecklists ? (
+                                <p className="font-medium">
+                                    Task must have at least one checklist item
+                                </p>
+                            ) : (
+                                <>
+                                    <p className="font-medium mb-1">
+                                        Status change blocked by {blockingDependencies.length}{' '}
+                                        {blockingDependencies.length === 1 ? 'dependency' : 'dependencies'}:
+                                    </p>
+                                    <ul className="list-disc list-inside">
+                                        {blockingDependencies.slice(0, 3).map((dep) => (
+                                            <li key={dep.id}>{dep.title} ({dep.progress}%)</li>
+                                        ))}
+                                        {blockingDependencies.length > 3 && (
+                                            <li>... and {blockingDependencies.length - 3} more</li>
+                                        )}
+                                    </ul>
+                                </>
+                            )}
                         </div>
                     </TooltipContent>
                 </Tooltip>

@@ -223,7 +223,48 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                         <div>
                             <h3 className="text-sm font-medium text-gray-900 mb-2">{t('Stage')}</h3>
                             {taskPermissions?.change_status ? (
-                                !canBeStarted && blockingDependencies.length > 0 ? (
+                                currentTask.checklists?.length === 0 ? (
+                                    <div>
+                                        <Select
+                                            value={currentTask.task_stage_id.toString()}
+                                            onValueChange={handleStageChange}
+                                            disabled={true}
+                                        >
+                                            <SelectTrigger className="opacity-60">
+                                                <div className="flex items-center gap-2">
+                                                    <Lock className="h-4 w-4 text-destructive" />
+                                                    <SelectValue />
+                                                </div>
+                                            </SelectTrigger>
+                                            <SelectContent className="z-[9999]">
+                                                {stages.map((stage) => (
+                                                    <SelectItem key={stage.id} value={stage.id.toString()}>
+                                                        <div className="flex items-center space-x-2">
+                                                            <div
+                                                                className="w-3 h-3 rounded-full"
+                                                                style={{ backgroundColor: stage.color }}
+                                                            />
+                                                            <span>{stage.name}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm">
+                                            <div className="flex items-start gap-2">
+                                                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                                <div>
+                                                    <p className="font-medium text-yellow-800">
+                                                        {t('Status change blocked')}
+                                                    </p>
+                                                    <p className="text-yellow-700 text-xs mt-1">
+                                                        {t('Task must have at least one checklist item')}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : !canBeStarted && blockingDependencies.length > 0 ? (
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
@@ -404,84 +445,15 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                         <div>
                             <h3 className="text-sm font-medium text-gray-900 mb-2">{t('Progress')}</h3>
                             <div className="space-y-2">
-                                {taskPermissions?.update ? (
-                                    <>
-                                        <div className="flex items-center justify-between">
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                value={currentTask.progress}
-                                                onChange={(e) => {
-                                                    const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                                                    router.put(route('tasks.update', task.id), {
-                                                        title: currentTask.title,
-                                                        description: currentTask.description || '',
-                                                        priority: currentTask.priority,
-                                                        start_date: currentTask.start_date,
-                                                        end_date: currentTask.end_date,
-                                                        assigned_to: currentTask.assigned_to?.id,
-                                                        milestone_id: currentTask.milestone_id,
-                                                        task_stage_id: currentTask.task_stage_id,
-                                                        progress: value
-                                                    }, {
-                                                        onSuccess: () => {
-                                                            refreshTask();
-                                                        },
-                                                        onError: () => {
-                                                            toast.error('Failed to update progress');
-                                                        }
-                                                    });
-                                                }}
-                                                className="w-20 text-sm"
-                                            />
-                                            <span className="text-sm text-gray-600">%</span>
-                                        </div>
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="100"
-                                            value={currentTask.progress}
-                                            onChange={(e) => {
-                                                const value = parseInt(e.target.value);
-                                                router.put(route('tasks.update', task.id), {
-                                                    title: currentTask.title,
-                                                    description: currentTask.description || '',
-                                                    priority: currentTask.priority,
-                                                    start_date: currentTask.start_date,
-                                                    end_date: currentTask.end_date,
-                                                    assigned_to: currentTask.assigned_to?.id,
-                                                    milestone_id: currentTask.milestone_id,
-                                                    task_stage_id: currentTask.task_stage_id,
-                                                    progress: value
-                                                }, {
-                                                    onSuccess: () => {
-                                                        refreshTask();
-                                                    },
-                                                    onError: () => {
-                                                        toast.error('Failed to update progress');
-                                                    }
-                                                });
-                                            }}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                                            style={{
-                                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${currentTask.progress}%, #e5e7eb ${currentTask.progress}%, #e5e7eb 100%)`
-                                            }}
-                                        />
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm text-gray-600">{currentTask.progress}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className="bg-blue-600 h-2 rounded-full transition-all"
-                                                style={{ width: `${currentTask.progress}%` }}
-                                            />
-                                        </div>
-                                    </>
-                                )}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">{currentTask.progress}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    <div
+                                        className="bg-blue-600 h-2 rounded-full transition-all"
+                                        style={{ width: `${currentTask.progress}%` }}
+                                    />
+                                </div>
                             </div>
                         </div>
 

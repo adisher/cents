@@ -322,12 +322,19 @@ class TaskController extends Controller
             'end_date' => 'nullable|date|after:start_date',
             'assigned_to' => 'nullable|exists:users,id',
             'milestone_id' => 'nullable|exists:project_milestones,id',
-            'task_stage_id' => 'nullable|exists:task_stages,id',
-            'progress' => 'nullable|integer|min:0|max:100'
+            'task_stage_id' => 'nullable|exists:task_stages,id'
         ]);
 
-        // If task_stage_id is being updated, check dependencies
+        // If task_stage_id is being updated, check dependencies and checklists
         if (isset($validated['task_stage_id']) && $validated['task_stage_id'] != $task->task_stage_id) {
+            // Check if task has checklists
+            if ($task->checklists()->count() === 0) {
+                return back()->withErrors([
+                    'error' => __('Cannot change task stage. Task must have at least one checklist item.')
+                ]);
+            }
+
+            // Check dependencies
             if (!$task->canBeStarted()) {
                 $blockingDependencies = $task->getBlockingDependencies();
                 $blockingCount = $blockingDependencies->count();
@@ -338,12 +345,6 @@ class TaskController extends Controller
                         'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
                     ])
                 ]);
-            }
-
-            // Auto-update progress to 100 if moving to "Done" stage
-            $newStage = TaskStage::find($validated['task_stage_id']);
-            if ($newStage && strtolower($newStage->name) === 'done') {
-                $validated['progress'] = 100;
             }
         }
 
@@ -412,6 +413,13 @@ class TaskController extends Controller
             'task_stage_id' => 'required|exists:task_stages,id'
         ]);
 
+        // Check if task has checklists
+        if ($task->checklists()->count() === 0) {
+            return back()->withErrors([
+                'error' => __('Cannot change task stage. Task must have at least one checklist item.')
+            ]);
+        }
+
         // Check if task has blocking dependencies before allowing status change
         if (!$task->canBeStarted()) {
             $blockingDependencies = $task->getBlockingDependencies();
@@ -423,12 +431,6 @@ class TaskController extends Controller
                     'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
                 ])
             ]);
-        }
-
-        // Auto-update progress to 100 if moving to "Done" stage
-        $newStage = TaskStage::find($validated['task_stage_id']);
-        if ($newStage && strtolower($newStage->name) === 'done') {
-            $validated['progress'] = 100;
         }
 
         $task->update($validated);

@@ -24,7 +24,7 @@ class TaskController extends Controller
         $workspace = $user->currentWorkspace;
         $userWorkspaceRole = $workspace->getMemberRole($user);
         
-        $query = Task::with(['project', 'taskStage', 'assignedTo', 'creator', 'milestone', 'dependsOnTasks'])
+        $query = Task::with(['project', 'taskStage', 'assignedTo', 'creator', 'milestone', 'dependsOnTasks', 'checklists'])
             ->whereHas('project', function($q) use ($user, $userWorkspaceRole) {
                 $q->forWorkspace($user->current_workspace_id);
                 

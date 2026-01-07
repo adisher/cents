@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\InvoicePayment;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\ProjectExpense;
@@ -298,12 +299,12 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load(['project', 'client', 'creator', 'items.task', 'items.expense', 'items.timesheetEntry']);
-        
+        $invoice->load(['project', 'client', 'creator', 'items.task', 'items.expense', 'items.timesheetEntry', 'payments.recordedBy']);
+
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
         $userWorkspaceRole = $workspace->getMemberRole($user);
-        
+
         // Check access permissions for draft invoices
         if ($invoice->status === 'draft') {
             // Only managers and owners can view draft invoices
@@ -316,7 +317,7 @@ class InvoiceController extends Controller
                 abort(403, 'Access denied.');
             }
         }
-        
+
         return Inertia::render('invoices/Show', [
             'invoice' => $invoice,
             'userWorkspaceRole' => $userWorkspaceRole
@@ -536,6 +537,45 @@ class InvoiceController extends Controller
             $validated['payment_details'] ?? null
         );
         return back()->with('success', __('Invoice marked as paid successfully!'));
+    }
+
+    public function recordPayment(Request $request, Invoice $invoice)
+    {
+        $user = auth()->user();
+        $workspace = $user->currentWorkspace;
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01|max:' . $invoice->balance_due,
+            'payment_date' => 'required|date|before_or_equal:today',
+            'payment_method' => 'required|in:cheque,bank_transfer,ach_credit,credit_card,cash,wire',
+            'payment_reference' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        // Create payment record
+        $payment = InvoicePayment::create([
+            'invoice_id' => $invoice->id,
+            'workspace_id' => $workspace->id,
+            'recorded_by' => $user->id,
+            'amount' => $validated['amount'],
+            'payment_date' => $validated['payment_date'],
+            'payment_method' => $validated['payment_method'],
+            'payment_reference' => $validated['payment_reference'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        // Update invoice paid_amount
+        $invoice->paid_amount += $validated['amount'];
+
+        // If fully paid, mark invoice as paid
+        if ($invoice->paid_amount >= $invoice->total_amount) {
+            $invoice->status = 'paid';
+            $invoice->paid_at = now();
+        }
+
+        $invoice->save();
+
+        return back()->with('success', __('Payment recorded successfully!'));
     }
 
     public function send(Invoice $invoice)

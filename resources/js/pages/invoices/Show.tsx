@@ -11,6 +11,7 @@ import { Edit, DollarSign, Download, ArrowLeft, Calendar, User, Building, FileTe
 import { PageTemplate } from '@/components/page-template';
 import { formatCurrency } from '@/utils/currency';
 import { InvoicePaymentModal } from '@/components/invoices/invoice-payment-modal';
+import { RecordPaymentModal } from '@/components/invoices/record-payment-modal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface InvoiceItem {
@@ -27,6 +28,21 @@ interface InvoiceItem {
         id: number;
         title: string;
     };
+}
+
+interface InvoicePayment {
+    id: number;
+    amount: number;
+    payment_date: string;
+    payment_method: string;
+    payment_method_label: string;
+    payment_reference?: string;
+    notes?: string;
+    recorded_by: {
+        id: number;
+        name: string;
+    };
+    created_at: string;
 }
 
 interface Invoice {
@@ -65,6 +81,7 @@ interface Invoice {
     notes?: string;
     terms?: string;
     items: InvoiceItem[];
+    payments?: InvoicePayment[];
     created_at: string;
 }
 
@@ -72,7 +89,8 @@ export default function InvoiceShow() {
     const { t } = useTranslation();
     const { invoice, userWorkspaceRole, flash } = usePage().props as { invoice: Invoice; userWorkspaceRole: string; flash?: any };
     const [showPaymentModal, setShowPaymentModal] = React.useState(false);
-    const [showMarkPaidModal, setShowMarkPaidModal] = React.useState(false);
+    const [showRecordPaymentModal, setShowRecordPaymentModal] = React.useState(false);
+    // const [showMarkPaidModal, setShowMarkPaidModal] = React.useState(false); // Commented - replaced with Record Payment
 
     // Show flash messages
     useEffect(() => {
@@ -104,8 +122,12 @@ export default function InvoiceShow() {
                 router.get(route('invoices.edit', invoice.id));
                 break;
 
-            case 'mark-paid':
-                setShowMarkPaidModal(true);
+            // case 'mark-paid':
+            //     setShowMarkPaidModal(true);
+            //     break;
+
+            case 'record-payment':
+                setShowRecordPaymentModal(true);
                 break;
 
             case 'send':
@@ -131,20 +153,21 @@ export default function InvoiceShow() {
         router.reload();
     };
 
-    const handleMarkPaidConfirm = () => {
-        toast.loading('Marking invoice as paid...');
-        router.post(route('invoices.mark-paid', invoice.id), {}, {
-            onSuccess: () => {
-                toast.dismiss();
-                setShowMarkPaidModal(false);
-            },
-            onError: () => {
-                toast.dismiss();
-                toast.error('Failed to mark invoice as paid');
-                setShowMarkPaidModal(false);
-            }
-        });
-    };
+    // Commented - replaced with Record Payment modal
+    // const handleMarkPaidConfirm = () => {
+    //     toast.loading('Marking invoice as paid...');
+    //     router.post(route('invoices.mark-paid', invoice.id), {}, {
+    //         onSuccess: () => {
+    //             toast.dismiss();
+    //             setShowMarkPaidModal(false);
+    //         },
+    //         onError: () => {
+    //             toast.dismiss();
+    //             toast.error('Failed to mark invoice as paid');
+    //             setShowMarkPaidModal(false);
+    //         }
+    //     });
+    // };
 
     const pageActions = [];
     
@@ -165,7 +188,7 @@ export default function InvoiceShow() {
         );
     }
 
-    if (['pending', 'sent', 'viewed', 'overdue'].includes(invoice.status)) {
+    if (['sent', 'viewed', 'overdue'].includes(invoice.status)) {
         // Show Pay button for workspace clients
         if (userWorkspaceRole === 'client') {
             pageActions.push({
@@ -175,12 +198,12 @@ export default function InvoiceShow() {
                 onClick: () => handleAction('pay')
             });
         } else {
-            // Show Mark as Paid for non-clients (admin, manager, member)
+            // Show Record Payment for non-clients (admin, manager, member)
             pageActions.push({
-                label: t('Mark as Paid'),
+                label: t('Record Payment'),
                 icon: <DollarSign className="h-4 w-4 mr-2" />,
                 variant: 'default',
-                onClick: () => handleAction('mark-paid')
+                onClick: () => handleAction('record-payment')
             });
         }
     }
@@ -433,8 +456,72 @@ export default function InvoiceShow() {
                     </div>
                 )}
 
-                {/* Payment Information */}
-                {invoice.payment_method && (
+                {/* Payment Records */}
+                {invoice.payments && invoice.payments.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <DollarSign className="h-5 w-5 text-green-600" />
+                                {t('Payment Records')}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {invoice.payments.map((payment, index) => (
+                                    <div key={payment.id} className={`p-4 bg-green-50 border border-green-200 rounded-lg ${index > 0 ? 'mt-4' : ''}`}>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <h3 className="font-medium text-sm text-gray-600 uppercase tracking-wide mb-1">{t('Amount')}</h3>
+                                                <p className="text-lg font-bold text-green-700">{formatCurrency(payment.amount)}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-sm text-gray-600 uppercase tracking-wide mb-1">{t('Payment Date')}</h3>
+                                                <p className="text-sm">{new Date(payment.payment_date).toLocaleDateString()}</p>
+                                            </div>
+                                            <div>
+                                                <h3 className="font-medium text-sm text-gray-600 uppercase tracking-wide mb-1">{t('Payment Method')}</h3>
+                                                <p className="text-sm">{payment.payment_method_label}</p>
+                                            </div>
+                                        </div>
+
+                                        {(payment.payment_reference || payment.notes) && (
+                                            <div className="mt-3 pt-3 border-t border-green-300">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {payment.payment_reference && (
+                                                        <div>
+                                                            <h3 className="font-medium text-sm text-gray-600 uppercase tracking-wide mb-1">{t('Reference')}</h3>
+                                                            <p className="text-sm font-mono">{payment.payment_reference}</p>
+                                                        </div>
+                                                    )}
+                                                    {payment.notes && (
+                                                        <div>
+                                                            <h3 className="font-medium text-sm text-gray-600 uppercase tracking-wide mb-1">{t('Notes')}</h3>
+                                                            <p className="text-sm text-gray-700">{payment.notes}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="mt-3 pt-3 border-t border-green-300 flex items-center justify-between text-xs text-gray-600">
+                                            <div className="flex items-center gap-2">
+                                                <User className="h-3 w-3" />
+                                                <span>{t('Recorded by')} {payment.recorded_by.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="h-3 w-3" />
+                                                <span>{new Date(payment.created_at).toLocaleDateString()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Payment Information - OLD (kept for backward compatibility with old data) */}
+                {invoice.payment_method && !invoice.payments?.length && (
                     <Card>
                         <CardHeader>
                             <CardTitle className="text-lg">{t('Payment Information')}</CardTitle>
@@ -488,8 +575,16 @@ export default function InvoiceShow() {
                     onSuccess={handlePaymentSuccess}
                 />
 
-                {/* Mark as Paid Confirmation Modal */}
-                <Dialog open={showMarkPaidModal} onOpenChange={setShowMarkPaidModal}>
+                {/* Record Payment Modal */}
+                <RecordPaymentModal
+                    isOpen={showRecordPaymentModal}
+                    onClose={() => setShowRecordPaymentModal(false)}
+                    invoiceId={invoice.id}
+                    balanceDue={invoice.balance_due}
+                />
+
+                {/* Mark as Paid Confirmation Modal - COMMENTED - Replaced with Record Payment */}
+                {/* <Dialog open={showMarkPaidModal} onOpenChange={setShowMarkPaidModal}>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>{t('Mark Invoice as Paid')}</DialogTitle>
@@ -504,7 +599,7 @@ export default function InvoiceShow() {
                             </Button>
                         </div>
                     </DialogContent>
-                </Dialog>
+                </Dialog> */}
             </div>
         </PageTemplate>
     );

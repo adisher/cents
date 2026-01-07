@@ -90,6 +90,11 @@ class Invoice extends Model
         return $this->hasMany(InvoiceItem::class)->orderBy('sort_order');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(InvoicePayment::class)->latest();
+    }
+
     // Scopes
     public function scopeForWorkspace($query, $workspaceId)
     {

@@ -37,7 +37,22 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
 
     const refreshTask = async () => {
         try {
-            const response = await fetch(route('tasks.show', task.id));
+            // Add a small delay to ensure database transaction is committed
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Add cache-busting to ensure fresh data
+            const response = await fetch(route('tasks.show', task.id) + '?t=' + Date.now(), {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                cache: 'no-cache'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch task data');
+            }
+
             const data = await response.json();
             setCurrentTask(data.task);
             setTaskPermissions(data.permissions);
@@ -46,6 +61,7 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
             setAvailableTasks(data.availableTasks ?? []);
         } catch (error) {
             console.error('Failed to refresh task:', error);
+            toast.error('Failed to refresh task data');
         }
     };
 

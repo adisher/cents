@@ -404,15 +404,84 @@ export default function TaskModal({ task, isOpen, onClose, members, stages, mile
                         <div>
                             <h3 className="text-sm font-medium text-gray-900 mb-2">{t('Progress')}</h3>
                             <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-600">{currentTask.progress}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div 
-                                        className="bg-blue-600 h-2 rounded-full transition-all" 
-                                        style={{ width: `${currentTask.progress}%` }}
-                                    />
-                                </div>
+                                {taskPermissions?.update ? (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={currentTask.progress}
+                                                onChange={(e) => {
+                                                    const value = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                                                    router.put(route('tasks.update', task.id), {
+                                                        title: currentTask.title,
+                                                        description: currentTask.description || '',
+                                                        priority: currentTask.priority,
+                                                        start_date: currentTask.start_date,
+                                                        end_date: currentTask.end_date,
+                                                        assigned_to: currentTask.assigned_to?.id,
+                                                        milestone_id: currentTask.milestone_id,
+                                                        task_stage_id: currentTask.task_stage_id,
+                                                        progress: value
+                                                    }, {
+                                                        onSuccess: () => {
+                                                            refreshTask();
+                                                        },
+                                                        onError: () => {
+                                                            toast.error('Failed to update progress');
+                                                        }
+                                                    });
+                                                }}
+                                                className="w-20 text-sm"
+                                            />
+                                            <span className="text-sm text-gray-600">%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            value={currentTask.progress}
+                                            onChange={(e) => {
+                                                const value = parseInt(e.target.value);
+                                                router.put(route('tasks.update', task.id), {
+                                                    title: currentTask.title,
+                                                    description: currentTask.description || '',
+                                                    priority: currentTask.priority,
+                                                    start_date: currentTask.start_date,
+                                                    end_date: currentTask.end_date,
+                                                    assigned_to: currentTask.assigned_to?.id,
+                                                    milestone_id: currentTask.milestone_id,
+                                                    task_stage_id: currentTask.task_stage_id,
+                                                    progress: value
+                                                }, {
+                                                    onSuccess: () => {
+                                                        refreshTask();
+                                                    },
+                                                    onError: () => {
+                                                        toast.error('Failed to update progress');
+                                                    }
+                                                });
+                                            }}
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                            style={{
+                                                background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${currentTask.progress}%, #e5e7eb ${currentTask.progress}%, #e5e7eb 100%)`
+                                            }}
+                                        />
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-gray-600">{currentTask.progress}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className="bg-blue-600 h-2 rounded-full transition-all"
+                                                style={{ width: `${currentTask.progress}%` }}
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 

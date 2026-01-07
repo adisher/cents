@@ -322,7 +322,8 @@ class TaskController extends Controller
             'end_date' => 'nullable|date|after:start_date',
             'assigned_to' => 'nullable|exists:users,id',
             'milestone_id' => 'nullable|exists:project_milestones,id',
-            'task_stage_id' => 'nullable|exists:task_stages,id'
+            'task_stage_id' => 'nullable|exists:task_stages,id',
+            'progress' => 'nullable|integer|min:0|max:100'
         ]);
 
         // If task_stage_id is being updated, check dependencies
@@ -337,6 +338,12 @@ class TaskController extends Controller
                         'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
                     ])
                 ]);
+            }
+
+            // Auto-update progress to 100 if moving to "Done" stage
+            $newStage = TaskStage::find($validated['task_stage_id']);
+            if ($newStage && strtolower($newStage->name) === 'done') {
+                $validated['progress'] = 100;
             }
         }
 
@@ -416,6 +423,12 @@ class TaskController extends Controller
                     'dependencies' => $blockingCount === 1 ? 'dependency' : 'dependencies'
                 ])
             ]);
+        }
+
+        // Auto-update progress to 100 if moving to "Done" stage
+        $newStage = TaskStage::find($validated['task_stage_id']);
+        if ($newStage && strtolower($newStage->name) === 'done') {
+            $validated['progress'] = 100;
         }
 
         $task->update($validated);

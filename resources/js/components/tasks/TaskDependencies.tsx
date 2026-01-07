@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { router } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,89 +34,55 @@ export default function TaskDependencies({
     const [dependencyType, setDependencyType] = useState<string>('finish_to_start');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleAddDependency = async () => {
+    const handleAddDependency = () => {
         if (!selectedTaskId) {
             toast.error(t('Please select a task'));
             return;
         }
 
         setIsLoading(true);
-        toast.loading(t('Adding dependency...'));
 
-        try {
-            const response = await fetch(route('tasks.add-dependency', task.id), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    depends_on_task_id: selectedTaskId,
-                    dependency_type: dependencyType
-                })
-            });
-
-            const data = await response.json();
-
-            toast.dismiss();
-
-            if (response.ok) {
-                toast.success(data.message || t('Dependency added successfully!'));
+        router.post(route('tasks.add-dependency', task.id), {
+            depends_on_task_id: selectedTaskId,
+            dependency_type: dependencyType
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success(t('Dependency added successfully!'));
                 setSelectedTaskId('');
                 setDependencyType('finish_to_start');
+                setIsLoading(false);
                 // Refresh the task data
                 onUpdate();
-            } else {
-                // Handle validation errors
-                const errorMessage = data.error || data.message || t('Failed to add dependency');
-                toast.error(errorMessage);
+            },
+            onError: (errors) => {
+                const errorMessage = errors.error || Object.values(errors)[0] || t('Failed to add dependency');
+                toast.error(errorMessage as string);
+                setIsLoading(false);
             }
-        } catch (error) {
-            toast.dismiss();
-            console.error('Failed to add dependency:', error);
-            toast.error(t('Failed to add dependency'));
-        } finally {
-            setIsLoading(false);
-        }
+        });
     };
 
-    const handleRemoveDependency = async (dependsOnTaskId: number) => {
+    const handleRemoveDependency = (dependsOnTaskId: number) => {
         setIsLoading(true);
-        toast.loading(t('Removing dependency...'));
 
-        try {
-            const response = await fetch(route('tasks.remove-dependency', task.id), {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    depends_on_task_id: dependsOnTaskId
-                })
-            });
-
-            const data = await response.json();
-
-            toast.dismiss();
-
-            if (response.ok) {
-                toast.success(data.message || t('Dependency removed successfully!'));
+        router.delete(route('tasks.remove-dependency', task.id), {
+            data: {
+                depends_on_task_id: dependsOnTaskId
+            },
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success(t('Dependency removed successfully!'));
+                setIsLoading(false);
                 // Refresh the task data
                 onUpdate();
-            } else {
-                const errorMessage = data.error || data.message || t('Failed to remove dependency');
-                toast.error(errorMessage);
+            },
+            onError: (errors) => {
+                const errorMessage = errors.error || Object.values(errors)[0] || t('Failed to remove dependency');
+                toast.error(errorMessage as string);
+                setIsLoading(false);
             }
-        } catch (error) {
-            toast.dismiss();
-            console.error('Failed to remove dependency:', error);
-            toast.error(t('Failed to remove dependency'));
-        } finally {
-            setIsLoading(false);
-        }
+        });
     };
 
     const getTaskProgress = (taskToCheck: Task) => {

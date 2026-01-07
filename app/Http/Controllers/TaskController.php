@@ -501,14 +501,9 @@ class TaskController extends Controller
 
         ]);
 
-        // Reload the task with fresh relationships
-        $task->load('dependsOnTasks', 'dependentTasks');
 
-        // Return JSON response instead of redirect
-        return response()->json([
-            'success' => true,
-            'message' => __('Dependency added successfully!')
-        ]);
+
+        return back()->with('success', __('Dependency added successfully!'));
 
     }
 
@@ -550,14 +545,9 @@ class TaskController extends Controller
 
             ->delete();
 
-        // Reload the task with fresh relationships
-        $task->load('dependsOnTasks', 'dependentTasks');
 
-        // Return JSON response instead of redirect
-        return response()->json([
-            'success' => true,
-            'message' => __('Dependency removed successfully!')
-        ]);
+
+        return back()->with('success', __('Dependency removed successfully!'));
 
     }
 

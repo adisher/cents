@@ -104,13 +104,11 @@ class Task extends Model
 
     {
 
-        $dependencies = $this->dependsOnTasks()
+        // Load dependencies with pivot data
 
-            ->select('tasks.id', 'tasks.progress', 'task_dependencies.dependency_type')
+        $dependencies = $this->dependsOnTasks()->get();
 
-            ->get();
 
- 
 
         if ($dependencies->isEmpty()) {
 
@@ -118,7 +116,7 @@ class Task extends Model
 
         }
 
- 
+
 
         foreach ($dependencies as $dependency) {
 
@@ -136,7 +134,7 @@ class Task extends Model
 
         }
 
- 
+
 
         return true;
 
@@ -175,8 +173,6 @@ class Task extends Model
             ->where('progress', '<', 100)
 
             ->where('task_dependencies.dependency_type', 'finish_to_start')
-
-            ->select('tasks.*', 'task_dependencies.dependency_type')
 
             ->get();
 

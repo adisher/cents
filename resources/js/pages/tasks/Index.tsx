@@ -569,9 +569,11 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                     onSuccess: () => {
                                                         toast.dismiss();
                                                     },
-                                                    onError: () => {
+                                                    onError: (errors) => {
                                                         toast.dismiss();
-                                                        toast.error('Failed to update task stage');
+                                                        // Show specific error message from backend
+                                                        const errorMessage = errors.error || Object.values(errors)[0] || 'Failed to update task stage';
+                                                        toast.error(errorMessage as string);
                                                     }
                                                 });
                                             }
@@ -610,17 +612,17 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                         <Card className="hover:shadow-md transition-all duration-200 border-l-4 hover:scale-105" style={{ borderLeftColor: stage.color }}>
                                                             <CardContent className="p-3">
                                                                 <div className="space-y-2">
-                                                                    <div className="flex items-start justify-between">
-                                                                        <h4 
-                                                                            className="font-medium text-sm line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer flex-1"
+                                                                    <div className="flex items-start gap-2">
+                                                                        <h4
+                                                                            className="font-medium text-sm line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer flex-1 min-w-0"
                                                                             onClick={() => handleAction('view', task.id)}
                                                                         >
                                                                             {task.title}
                                                                         </h4>
-                                                                        <div className="flex gap-1">
-                                                                            <Button 
-                                                                                variant="ghost" 
-                                                                                size="icon" 
+                                                                        <div className="flex gap-1 flex-shrink-0">
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="icon"
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     handleAction('view', task.id);
@@ -631,9 +633,9 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                                             </Button>
                                                                             {userWorkspaceRole !== 'client' && (
                                                                                 <>
-                                                                                    <Button 
-                                                                                        variant="ghost" 
-                                                                                        size="icon" 
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
                                                                                             handleAction('edit', task.id);
@@ -642,9 +644,9 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                                                     >
                                                                                         <Edit className="h-3 w-3" />
                                                                                     </Button>
-                                                                                    <Button 
-                                                                                        variant="ghost" 
-                                                                                        size="icon" 
+                                                                                    <Button
+                                                                                        variant="ghost"
+                                                                                        size="icon"
                                                                                         onClick={(e) => {
                                                                                             e.stopPropagation();
                                                                                             handleAction('delete', task.id);
@@ -657,12 +659,12 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                                             )}
                                                                         </div>
                                                                     </div>
-                                                                    
+
                                                                     {task.description && (
-                                                                        <p className="text-xs text-gray-600 line-clamp-2">{task.description}</p>
+                                                                        <p className="text-xs text-gray-600 line-clamp-2 break-words">{task.description}</p>
                                                                     )}
-                                                                    
-                                                                    <div className="flex items-center justify-between">
+
+                                                                    <div className="flex items-center justify-between flex-wrap gap-2">
                                                                         <TaskPriority priority={task.priority} showIcon />
                                                                         {task.assigned_to && (
                                                                             <Avatar className="h-5 w-5">
@@ -673,27 +675,27 @@ export default function TasksIndex({ tasks, projects, stages, members, filters, 
                                                                             </Avatar>
                                                                         )}
                                                                     </div>
-                                                                    
+
                                                                     <div className="space-y-1">
                                                                         <div className="flex justify-between text-xs">
                                                                             <span>{t('Progress')}</span>
-                                                                            <span>{task.progress}%</span>
+                                                                            <span className="flex-shrink-0">{task.progress}%</span>
                                                                         </div>
                                                                         <Progress value={task.progress} className="h-1" />
                                                                     </div>
-                                                                    
-                                                                    <div className="flex justify-between items-center text-xs text-gray-500">
+
+                                                                    <div className="flex flex-col gap-1 text-xs text-gray-500">
                                                                         {!project_name && (
-                                                                            <span className="bg-gray-100 px-2 py-1 rounded text-xs">{task.project?.title}</span>
+                                                                            <span className="bg-gray-100 px-2 py-1 rounded text-xs truncate max-w-full">{task.project?.title}</span>
                                                                         )}
-                                                                        <div className="flex items-center gap-2">
+                                                                        <div className="flex items-center gap-2 flex-wrap">
                                                                             {task.end_date && isTaskOverdue(task.end_date) && (
-                                                                                <Badge variant="destructive" className="text-xs">
+                                                                                <Badge variant="destructive" className="text-xs flex-shrink-0">
                                                                                     <AlertTriangle className="h-3 w-3 mr-1" />
                                                                                     Overdue
                                                                                 </Badge>
                                                                             )}
-                                                                            <span>{task.end_date ? new Date(task.end_date).toLocaleDateString() : t('No due date')}</span>
+                                                                            <span className="truncate">{task.end_date ? new Date(task.end_date).toLocaleDateString() : t('No due date')}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>

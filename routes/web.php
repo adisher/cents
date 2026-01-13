@@ -675,7 +675,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('invoices/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->middleware('permission:invoice_delete')->name('invoices.destroy');
 
         Route::post('invoices/{invoice}/mark-paid', [\App\Http\Controllers\InvoiceController::class, 'markAsPaid'])->middleware('permission:invoice_manage_payments')->name('invoices.mark-paid');
-        Route::post('invoices/{invoice}/record-payment', [\App\Http\Controllers\InvoiceController::class, 'recordPayment'])->middleware('permission:invoice_manage_payments')->name('invoices.record-payment');
+        Route::post('invoices/record-payment', [\App\Http\Controllers\InvoiceController::class, 'recordPayment'])->middleware('permission:invoice_manage_payments')->name('invoices.record-payment');
+        Route::get('api/invoices/unpaid', [\App\Http\Controllers\InvoiceController::class, 'getUnpaidInvoices'])->middleware('permission:invoice_view_any')->name('api.invoices.unpaid');
         Route::post('invoices/{invoice}/send', [\App\Http\Controllers\InvoiceController::class, 'send'])->middleware('permission:invoice_send')->name('invoices.send');
         Route::get('api/projects/{project}/invoice-data', [\App\Http\Controllers\InvoiceController::class, 'getProjectInvoiceData'])->middleware('permission:invoice_view_any')->name('api.projects.invoice-data');
 

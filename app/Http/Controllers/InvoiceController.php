@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\InvoicePayment;
+use App\Models\PaymentApplication;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\ProjectExpense;
 use App\Models\TimesheetEntry;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class InvoiceController extends Controller
@@ -539,43 +541,136 @@ class InvoiceController extends Controller
         return back()->with('success', __('Invoice marked as paid successfully!'));
     }
 
-    public function recordPayment(Request $request, Invoice $invoice)
+    public function getUnpaidInvoices(Request $request)
     {
         $user = auth()->user();
         $workspace = $user->currentWorkspace;
 
         $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $invoice->balance_due,
+            'client_id' => 'nullable|exists:users,id',
+            'project_id' => 'nullable|exists:projects,id',
+        ]);
+
+        $query = Invoice::forWorkspace($workspace->id)
+            ->with(['project', 'client'])
+            ->whereIn('status', ['sent', 'viewed', 'overdue', 'partially_paid'])
+            ->orderBy('invoice_date', 'asc');
+
+        if (isset($validated['client_id'])) {
+            $query->where('client_id', $validated['client_id']);
+        }
+
+        if (isset($validated['project_id'])) {
+            $query->where('project_id', $validated['project_id']);
+        }
+
+        $invoices = $query->get()->map(function ($invoice) {
+            return [
+                'id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'title' => $invoice->title,
+                'project' => $invoice->project ? [
+                    'id' => $invoice->project->id,
+                    'title' => $invoice->project->title
+                ] : null,
+                'client' => $invoice->client ? [
+                    'id' => $invoice->client->id,
+                    'name' => $invoice->client->name
+                ] : null,
+                'invoice_date' => $invoice->invoice_date->format('Y-m-d'),
+                'due_date' => $invoice->due_date->format('Y-m-d'),
+                'total_amount' => (float) $invoice->total_amount,
+                'paid_amount' => (float) $invoice->paid_amount,
+                'balance_due' => (float) $invoice->balance_due,
+                'status' => $invoice->status,
+                'is_overdue' => $invoice->is_overdue,
+            ];
+        });
+
+        return response()->json($invoices);
+    }
+
+    public function recordPayment(Request $request)
+    {
+        $user = auth()->user();
+        $workspace = $user->currentWorkspace;
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
             'payment_date' => 'required|date|before_or_equal:today',
             'payment_method' => 'required|in:cheque,bank_transfer,ach_credit,credit_card,cash,wire',
             'payment_reference' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:1000',
+            'applications' => 'required|array|min:1',
+            'applications.*.invoice_id' => 'required|exists:invoices,id',
+            'applications.*.amount' => 'required|numeric|min:0.01',
         ]);
 
-        // Create payment record
-        $payment = InvoicePayment::create([
-            'invoice_id' => $invoice->id,
-            'workspace_id' => $workspace->id,
-            'recorded_by' => $user->id,
-            'amount' => $validated['amount'],
-            'payment_date' => $validated['payment_date'],
-            'payment_method' => $validated['payment_method'],
-            'payment_reference' => $validated['payment_reference'] ?? null,
-            'notes' => $validated['notes'] ?? null,
-        ]);
-
-        // Update invoice paid_amount
-        $invoice->paid_amount += $validated['amount'];
-
-        // If fully paid, mark invoice as paid
-        if ($invoice->paid_amount >= $invoice->total_amount) {
-            $invoice->status = 'paid';
-            $invoice->paid_at = now();
+        // Validate total applications don't exceed payment amount
+        $totalApplied = collect($validated['applications'])->sum('amount');
+        if ($totalApplied > $validated['amount']) {
+            return back()->withErrors([
+                'applications' => __('Total applied amount ($:total) cannot exceed payment amount ($:payment)', [
+                    'total' => number_format($totalApplied, 2),
+                    'payment' => number_format($validated['amount'], 2)
+                ])
+            ]);
         }
 
-        $invoice->save();
+        // Validate each application doesn't exceed invoice balance
+        foreach ($validated['applications'] as $application) {
+            $invoice = Invoice::find($application['invoice_id']);
+            if ($application['amount'] > $invoice->balance_due) {
+                return back()->withErrors([
+                    'applications' => __('Amount for invoice :number ($:amount) exceeds balance due ($:balance)', [
+                        'number' => $invoice->invoice_number,
+                        'amount' => number_format($application['amount'], 2),
+                        'balance' => number_format($invoice->balance_due, 2)
+                    ])
+                ]);
+            }
+        }
 
-        return back()->with('success', __('Payment recorded successfully!'));
+        DB::beginTransaction();
+
+        try {
+            // Create payment record
+            $payment = InvoicePayment::create([
+                'invoice_id' => null, // Multi-invoice payment
+                'workspace_id' => $workspace->id,
+                'recorded_by' => $user->id,
+                'amount' => $validated['amount'],
+                'payment_date' => $validated['payment_date'],
+                'payment_method' => $validated['payment_method'],
+                'payment_reference' => $validated['payment_reference'] ?? null,
+                'notes' => $validated['notes'] ?? null,
+            ]);
+
+            // Create payment applications
+            foreach ($validated['applications'] as $application) {
+                PaymentApplication::create([
+                    'payment_id' => $payment->id,
+                    'invoice_id' => $application['invoice_id'],
+                    'amount' => $application['amount'],
+                ]);
+
+                // Update invoice payment status
+                $invoice = Invoice::find($application['invoice_id']);
+                $invoice->updatePaymentStatus();
+            }
+
+            DB::commit();
+
+            return back()->with('success', __('Payment recorded and applied to :count invoices successfully!', [
+                'count' => count($validated['applications'])
+            ]));
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors([
+                'error' => __('Failed to record payment: :message', ['message' => $e->getMessage()])
+            ]);
+        }
     }
 
     public function send(Invoice $invoice)

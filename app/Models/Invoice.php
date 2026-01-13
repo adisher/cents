@@ -95,6 +95,40 @@ class Invoice extends Model
         return $this->hasMany(InvoicePayment::class)->latest();
     }
 
+    public function paymentApplications(): HasMany
+    {
+        return $this->hasMany(PaymentApplication::class);
+    }
+
+    public function appliedPayments()
+    {
+        return $this->belongsToMany(InvoicePayment::class, 'payment_applications', 'invoice_id', 'payment_id')
+            ->withPivot('amount')
+            ->withTimestamps();
+    }
+
+    // Calculate total paid amount from payment applications
+    public function calculatePaidAmount()
+    {
+        return $this->paymentApplications()->sum('amount');
+    }
+
+    // Update the invoice's paid_amount and status based on payment applications
+    public function updatePaymentStatus()
+    {
+        $totalPaid = $this->calculatePaidAmount();
+        $this->paid_amount = $totalPaid;
+
+        if ($totalPaid >= $this->total_amount) {
+            $this->status = 'paid';
+            $this->paid_at = now();
+        } elseif ($totalPaid > 0) {
+            $this->status = 'partially_paid';
+        }
+
+        $this->save();
+    }
+
     // Scopes
     public function scopeForWorkspace($query, $workspaceId)
     {

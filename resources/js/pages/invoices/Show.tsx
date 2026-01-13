@@ -30,6 +30,16 @@ interface InvoiceItem {
     };
 }
 
+interface PaymentApplication {
+    id: number;
+    amount: number;
+    invoice: {
+        id: number;
+        invoice_number: string;
+        title: string;
+    };
+}
+
 interface InvoicePayment {
     id: number;
     amount: number;
@@ -43,6 +53,7 @@ interface InvoicePayment {
         name: string;
     };
     created_at: string;
+    applications?: PaymentApplication[];
 }
 
 interface Invoice {
@@ -108,6 +119,7 @@ export default function InvoiceShow() {
             sent: 'bg-blue-100 text-blue-800',
             viewed: 'bg-yellow-100 text-yellow-800',
             paid: 'bg-green-100 text-green-800',
+            partially_paid: 'bg-yellow-100 text-yellow-800',
             overdue: 'bg-red-100 text-red-800',
             cancelled: 'bg-gray-100 text-gray-800'
         };
@@ -188,7 +200,7 @@ export default function InvoiceShow() {
         );
     }
 
-    if (['sent', 'viewed', 'overdue'].includes(invoice.status)) {
+    if (['sent', 'viewed', 'overdue', 'partially_paid'].includes(invoice.status)) {
         // Show Pay button for workspace clients
         if (userWorkspaceRole === 'client') {
             pageActions.push({
@@ -484,6 +496,25 @@ export default function InvoiceShow() {
                                             </div>
                                         </div>
 
+                                        {/* Payment Applications */}
+                                        {payment.applications && payment.applications.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-green-300">
+                                                <h3 className="font-medium text-sm text-gray-600 uppercase tracking-wide mb-2">{t('Applied To')}</h3>
+                                                <div className="space-y-1">
+                                                    {payment.applications.map((application) => (
+                                                        <div key={application.id} className="flex items-center justify-between text-sm bg-white bg-opacity-50 px-3 py-2 rounded">
+                                                            <span className="flex items-center gap-2">
+                                                                <FileText className="h-3 w-3 text-gray-400" />
+                                                                <span className="font-medium">{application.invoice.invoice_number}</span>
+                                                                <span className="text-gray-600">- {application.invoice.title}</span>
+                                                            </span>
+                                                            <span className="font-medium text-green-700">{formatCurrency(application.amount)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {(payment.payment_reference || payment.notes) && (
                                             <div className="mt-3 pt-3 border-t border-green-300">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -579,8 +610,8 @@ export default function InvoiceShow() {
                 <RecordPaymentModal
                     isOpen={showRecordPaymentModal}
                     onClose={() => setShowRecordPaymentModal(false)}
-                    invoiceId={invoice.id}
-                    balanceDue={invoice.balance_due}
+                    clientId={invoice.client?.id}
+                    projectId={invoice.project.id}
                 />
 
                 {/* Mark as Paid Confirmation Modal - COMMENTED - Replaced with Record Payment */}

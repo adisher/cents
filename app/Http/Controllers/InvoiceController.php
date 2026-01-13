@@ -301,7 +301,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
-        $invoice->load(['project', 'client', 'creator', 'items.task', 'items.expense', 'items.timesheetEntry', 'payments.recordedBy']);
+        $invoice->load(['project', 'client', 'creator', 'items.task', 'items.expense', 'items.timesheetEntry', 'payments.recordedBy', 'payments.applications.invoice']);
 
         $user = auth()->user();
         $workspace = $user->currentWorkspace;

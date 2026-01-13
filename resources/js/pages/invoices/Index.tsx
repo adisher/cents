@@ -125,6 +125,7 @@ export default function InvoiceIndex() {
             sent: 'bg-blue-100 text-blue-800',
             viewed: 'bg-yellow-100 text-yellow-800',
             paid: 'bg-green-100 text-green-800',
+            partially_paid: 'bg-yellow-100 text-yellow-800',
             overdue: 'bg-red-100 text-red-800',
             cancelled: 'bg-gray-100 text-gray-800'
         };
@@ -779,17 +780,15 @@ export default function InvoiceIndex() {
             )}
 
             {/* Record Payment Modal */}
-            {invoiceToRecord && (
-                <RecordPaymentModal
-                    isOpen={showRecordPaymentModal}
-                    onClose={() => {
-                        setShowRecordPaymentModal(false);
-                        setInvoiceToRecord(null);
-                    }}
-                    invoiceId={invoiceToRecord.id}
-                    balanceDue={invoiceToRecord.balance_due}
-                />
-            )}
+            <RecordPaymentModal
+                isOpen={showRecordPaymentModal}
+                onClose={() => {
+                    setShowRecordPaymentModal(false);
+                    setInvoiceToRecord(null);
+                }}
+                clientId={invoiceToRecord?.client?.id}
+                projectId={invoiceToRecord?.project?.id}
+            />
         </PageTemplate>
     );
 }

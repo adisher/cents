@@ -13,6 +13,7 @@ import { Plus, Search, Filter, Eye, Edit, DollarSign, Trash2, LayoutGrid, List, 
 import { PageTemplate } from '@/components/page-template';
 import { CrudDeleteModal } from '@/components/CrudDeleteModal';
 import { InvoicePaymentModal } from '@/components/invoices/invoice-payment-modal';
+import { RecordPaymentModal } from '@/components/invoices/record-payment-modal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTranslation } from 'react-i18next';
 
@@ -65,8 +66,8 @@ export default function InvoiceIndex() {
     const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [invoiceToPay, setInvoiceToPay] = useState<Invoice | null>(null);
-    const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
-    const [invoiceToMarkPaid, setInvoiceToMarkPaid] = useState<Invoice | null>(null);
+    const [showRecordPaymentModal, setShowRecordPaymentModal] = useState(false);
+    const [invoiceToRecord, setInvoiceToRecord] = useState<Invoice | null>(null);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -91,9 +92,9 @@ export default function InvoiceIndex() {
                 router.get(route('invoices.edit', invoice.id));
                 break;
 
-            case 'mark-paid':
-                setInvoiceToMarkPaid(invoice);
-                setShowMarkPaidModal(true);
+            case 'record-payment':
+                setInvoiceToRecord(invoice);
+                setShowRecordPaymentModal(true);
                 break;
             case 'pay':
                 setInvoiceToPay(invoice);
@@ -157,24 +158,7 @@ export default function InvoiceIndex() {
         }
     };
 
-    const handleMarkPaidConfirm = () => {
-        if (invoiceToMarkPaid) {
-            toast.loading('Marking invoice as paid...');
-            router.post(route('invoices.mark-paid', invoiceToMarkPaid.id), {}, {
-                onSuccess: () => {
-                    toast.dismiss();
-                    setShowMarkPaidModal(false);
-                    setInvoiceToMarkPaid(null);
-                },
-                onError: () => {
-                    toast.dismiss();
-                    toast.error('Failed to mark invoice as paid');
-                    setShowMarkPaidModal(false);
-                    setInvoiceToMarkPaid(null);
-                }
-            });
-        }
-    };
+    // Removed handleMarkPaidConfirm - now using RecordPaymentModal
 
     const pageActions = [];
     
@@ -322,7 +306,21 @@ export default function InvoiceIndex() {
                             <div className="flex flex-wrap gap-4 items-end">
                                 <div className="space-y-2">
                                     <Label>{t('Project')}</Label>
-                                    <Select value={selectedProject} onValueChange={setSelectedProject}>
+                                    <Select
+                                        value={selectedProject}
+                                        onValueChange={(value) => {
+                                            setSelectedProject(value);
+                                            // Apply filters after a short delay to allow state update
+                                            setTimeout(() => {
+                                                const params: any = { page: 1 };
+                                                if (searchTerm) params.search = searchTerm;
+                                                if (value !== 'all') params.project_id = value;
+                                                if (selectedClient !== 'all') params.client_id = selectedClient;
+                                                if (selectedStatus !== 'all') params.status = selectedStatus;
+                                                router.get(route('invoices.index'), params, { preserveState: true, preserveScroll: true });
+                                            }, 100);
+                                        }}
+                                    >
                                         <SelectTrigger className="w-40">
                                             <SelectValue placeholder={t('All Projects')} />
                                         </SelectTrigger>
@@ -336,10 +334,24 @@ export default function InvoiceIndex() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label>{t('Status')}</Label>
-                                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                                    <Select
+                                        value={selectedStatus}
+                                        onValueChange={(value) => {
+                                            setSelectedStatus(value);
+                                            // Apply filters after a short delay to allow state update
+                                            setTimeout(() => {
+                                                const params: any = { page: 1 };
+                                                if (searchTerm) params.search = searchTerm;
+                                                if (selectedProject !== 'all') params.project_id = selectedProject;
+                                                if (selectedClient !== 'all') params.client_id = selectedClient;
+                                                if (value !== 'all') params.status = value;
+                                                router.get(route('invoices.index'), params, { preserveState: true, preserveScroll: true });
+                                            }, 100);
+                                        }}
+                                    >
                                         <SelectTrigger className="w-40">
                                             <SelectValue placeholder={t('All Status')} />
                                         </SelectTrigger>
@@ -506,16 +518,16 @@ export default function InvoiceIndex() {
                                         {(invoice.status === 'sent' || invoice.status === 'viewed' || invoice.status === 'overdue') && (
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        onClick={() => handleAction('mark-paid', invoice)}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleAction('record-payment', invoice)}
                                                         className="text-green-500 hover:text-green-700 h-8 w-8"
                                                     >
                                                         <DollarSign className="h-4 w-4" />
                                                     </Button>
                                                 </TooltipTrigger>
-                                                <TooltipContent>Mark as Paid</TooltipContent>
+                                                <TooltipContent>Record Payment</TooltipContent>
                                             </Tooltip>
                                         )}
                                     </>
@@ -657,16 +669,16 @@ export default function InvoiceIndex() {
                                                 {userWorkspaceRole !== 'client' && (invoice.status === 'sent' || invoice.status === 'viewed' || invoice.status === 'overdue') && (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="icon" 
-                                                                onClick={() => handleAction('mark-paid', invoice)}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleAction('record-payment', invoice)}
                                                                 className="text-green-500 hover:text-green-700 h-8 w-8"
                                                             >
                                                                 <DollarSign className="h-4 w-4" />
                                                             </Button>
                                                         </TooltipTrigger>
-                                                        <TooltipContent>Mark as Paid</TooltipContent>
+                                                        <TooltipContent>Record Payment</TooltipContent>
                                                     </Tooltip>
                                                 )}
                                                 
@@ -766,23 +778,18 @@ export default function InvoiceIndex() {
                 </div>
             )}
 
-            {/* Mark as Paid Confirmation Modal */}
-            <Dialog open={showMarkPaidModal} onOpenChange={setShowMarkPaidModal}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{t('Mark Invoice as Paid')}</DialogTitle>
-                    </DialogHeader>
-                    <p>{t('Are you sure you want to mark invoice')} {invoiceToMarkPaid?.invoice_number} {t('as paid')}?</p>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <Button variant="outline" onClick={() => setShowMarkPaidModal(false)}>
-                            {t('Cancel')}
-                        </Button>
-                        <Button onClick={handleMarkPaidConfirm}>
-                            {t('Mark as Paid')}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Record Payment Modal */}
+            {invoiceToRecord && (
+                <RecordPaymentModal
+                    isOpen={showRecordPaymentModal}
+                    onClose={() => {
+                        setShowRecordPaymentModal(false);
+                        setInvoiceToRecord(null);
+                    }}
+                    invoiceId={invoiceToRecord.id}
+                    balanceDue={invoiceToRecord.balance_due}
+                />
+            )}
         </PageTemplate>
     );
 }

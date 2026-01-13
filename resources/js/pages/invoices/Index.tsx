@@ -205,6 +205,12 @@ export default function InvoiceIndex() {
                         <div className="text-sm text-gray-600">{t('Paid')}</div>
                     </div>
                     <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">
+                            {invoices?.data?.filter((inv: Invoice) => inv.status === 'partially_paid').length || 0}
+                        </div>
+                        <div className="text-sm text-gray-600">{t('Partially Paid')}</div>
+                    </div>
+                    <div className="text-center">
                         <div className="text-2xl font-bold text-red-600">
                             {invoices?.data?.filter((inv: Invoice) => inv.status === 'overdue').length || 0}
                         </div>
@@ -362,6 +368,7 @@ export default function InvoiceIndex() {
                                             <SelectItem value="sent">Sent</SelectItem>
                                             <SelectItem value="viewed">Viewed</SelectItem>
                                             <SelectItem value="paid">Paid</SelectItem>
+                                            <SelectItem value="partially_paid">Partially Paid</SelectItem>
                                             <SelectItem value="overdue">Overdue</SelectItem>
                                             <SelectItem value="cancelled">Cancelled</SelectItem>
                                         </SelectContent>

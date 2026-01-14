@@ -151,12 +151,20 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
     }, 0);
     const remainingUnapplied = paymentAmount - totalApplied;
 
+    // Calculate total available balance from all unpaid invoices
+    const totalAvailableBalance = unpaidInvoices.reduce((sum, invoice) => {
+        return sum + invoice.balance_due;
+    }, 0);
+
     // Validation
     const hasErrors = () => {
         if (!formData.amount || paymentAmount <= 0) return true;
         if (!formData.payment_method) return true;
         if (selectedInvoices.size === 0) return true;
         if (totalApplied > paymentAmount) return true;
+
+        // Check if payment amount exceeds total available balance
+        if (paymentAmount > totalAvailableBalance) return true;
 
         // Check each invoice application
         for (const invoiceId of selectedInvoices) {
@@ -415,7 +423,7 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
 
                     {/* Totals Summary */}
                     {paymentAmount > 0 && (
-                        <Card className={totalApplied > paymentAmount ? 'border-red-500' : 'border-green-500'}>
+                        <Card className={(totalApplied > paymentAmount || paymentAmount > totalAvailableBalance) ? 'border-red-500' : 'border-green-500'}>
                             <CardContent className="pt-4">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -434,13 +442,19 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
                                             {formatCurrency(remainingUnapplied)}
                                         </span>
                                     </div>
+                                    {paymentAmount > totalAvailableBalance && (
+                                        <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                            <span>{t('Payment amount')} ({formatCurrency(paymentAmount)}) {t('exceeds total unpaid balance')} ({formatCurrency(totalAvailableBalance)}). {t('Please reduce the payment amount.')}</span>
+                                        </div>
+                                    )}
                                     {totalApplied > paymentAmount && (
                                         <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                                             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                                             <span>{t('Total applied amount exceeds payment amount')}</span>
                                         </div>
                                     )}
-                                    {remainingUnapplied > 0 && totalApplied > 0 && (
+                                    {remainingUnapplied > 0 && totalApplied > 0 && paymentAmount <= totalAvailableBalance && (
                                         <div className="flex items-start gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
                                             <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
                                             <span>{t('You have unapplied amount remaining. Consider applying it to another invoice.')}</span>

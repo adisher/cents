@@ -44,7 +44,7 @@ interface Invoice {
 
 export default function InvoiceIndex() {
     const { t } = useTranslation();
-    const { invoices, projects, clients, filters, auth, userWorkspaceRole, flash } = usePage().props as any;
+    const { invoices, statistics, projects, clients, filters, auth, userWorkspaceRole, flash } = usePage().props as any;
 
     // Show flash messages
     useEffect(() => {

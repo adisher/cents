@@ -187,48 +187,73 @@ export default function InvoiceIndex() {
         >
             {/* Overview Stats */}
             <div className="bg-white rounded-lg shadow mb-4 p-4">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
                     <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">{invoices?.total || 0}</div>
+                        <div className="text-2xl font-bold text-blue-600">{statistics?.total?.count || 0}</div>
                         <div className="text-sm text-gray-600">{t('Total Invoices')}</div>
+                        <div className="text-lg font-semibold text-blue-500 mt-1">
+                            {formatCurrency(statistics?.total?.amount || 0)}
+                        </div>
                     </div>
+
+                    <div className="text-center">
+                        <div className="text-2xl font-bold text-gray-600">
+                            {statistics?.draft?.count || 0}
+                        </div>
+                        <div className="text-sm text-gray-600">{t('Draft')}</div>
+                        <div className="text-lg font-semibold text-gray-500 mt-1">
+                            {formatCurrency(statistics?.draft?.amount || 0)}
+                        </div>
+                    </div>
+
                     <div className="text-center">
                         <div className="text-2xl font-bold text-yellow-600">
-                            {invoices?.data?.filter((inv: Invoice) => inv.status === 'sent' || inv.status === 'viewed').length || 0}
+                            {statistics?.pending?.count || 0}
                         </div>
                         <div className="text-sm text-gray-600">{t('Pending')}</div>
+                        <div className="text-lg font-semibold text-yellow-500 mt-1">
+                            {formatCurrency(statistics?.pending?.amount || 0)}
+                        </div>
                     </div>
+
                     <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">
-                            {invoices?.data?.filter((inv: Invoice) => inv.status === 'paid').length || 0}
+                            {statistics?.paid?.count || 0}
                         </div>
                         <div className="text-sm text-gray-600">{t('Paid')}</div>
+                        <div className="text-lg font-semibold text-green-500 mt-1">
+                            {formatCurrency(statistics?.paid?.amount || 0)}
+                        </div>
                     </div>
+
                     <div className="text-center">
                         <div className="text-2xl font-bold text-orange-600">
-                            {invoices?.data?.filter((inv: Invoice) => inv.status === 'partially_paid').length || 0}
+                            {statistics?.partially_paid?.count || 0}
                         </div>
                         <div className="text-sm text-gray-600">{t('Partially Paid')}</div>
+                        <div className="text-lg font-semibold text-orange-500 mt-1">
+                            {formatCurrency(statistics?.partially_paid?.amount || 0)}
+                        </div>
                     </div>
+
                     <div className="text-center">
                         <div className="text-2xl font-bold text-red-600">
-                            {invoices?.data?.filter((inv: Invoice) => inv.status === 'overdue').length || 0}
+                            {statistics?.overdue?.count || 0}
                         </div>
                         <div className="text-sm text-gray-600">{t('Overdue')}</div>
+                        <div className="text-lg font-semibold text-red-500 mt-1">
+                            {formatCurrency(statistics?.overdue?.amount || 0)}
+                        </div>
                     </div>
+
                     <div className="text-center">
                         <div className="text-2xl font-bold text-purple-600">
-                            {(() => {
-                                if (!invoices?.data || invoices.data.length === 0) {
-                                    return '$0.00';
-                                }
-                                const total = invoices.data.reduce((sum: number, inv: Invoice) => {
-                                    return sum + (parseFloat(inv.total_amount?.toString()) || 0);
-                                }, 0);
-                                return formatCurrency(total);
-                            })()}
+                            {statistics?.cancelled?.count || 0}
                         </div>
-                        <div className="text-sm text-gray-600">{t('Total Value')}</div>
+                        <div className="text-sm text-gray-600">{t('Cancelled')}</div>
+                        <div className="text-lg font-semibold text-purple-500 mt-1">
+                            {formatCurrency(statistics?.cancelled?.amount || 0)}
+                        </div>
                     </div>
                 </div>
             </div>

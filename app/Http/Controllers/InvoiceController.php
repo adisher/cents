@@ -227,6 +227,14 @@ class InvoiceController extends Controller
 
             ],
 
+            'partially_paid' => [
+
+                'count' => $allInvoices->where('status', 'partially_paid')->count(),
+
+                'amount' => $allInvoices->where('status', 'partially_paid')->sum('total_amount')
+
+            ],
+
             'overdue' => [
 
                 'count' => $allInvoices->whereIn('status', ['sent', 'viewed'])->where('due_date', '<', now()->toDateString())->count(),

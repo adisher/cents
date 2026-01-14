@@ -156,6 +156,12 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
         return sum + invoice.balance_due;
     }, 0);
 
+    // Calculate total balance of SELECTED invoices only
+    const totalSelectedBalance = Array.from(selectedInvoices).reduce((sum, invoiceId) => {
+        const invoice = unpaidInvoices.find(inv => inv.id === invoiceId);
+        return sum + (invoice?.balance_due || 0);
+    }, 0);
+
     // Validation
     const hasErrors = () => {
         if (!formData.amount || paymentAmount <= 0) return true;
@@ -163,8 +169,14 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
         if (selectedInvoices.size === 0) return true;
         if (totalApplied > paymentAmount) return true;
 
-        // Check if payment amount exceeds total available balance
+        // Check if payment amount exceeds total available balance (all invoices)
         if (paymentAmount > totalAvailableBalance) return true;
+
+        // Check if payment amount exceeds total balance of SELECTED invoices
+        if (selectedInvoices.size > 0 && paymentAmount > totalSelectedBalance) return true;
+
+        // Require full application - no unapplied amounts allowed
+        if (totalApplied < paymentAmount) return true;
 
         // Check each invoice application
         for (const invoiceId of selectedInvoices) {
@@ -423,7 +435,7 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
 
                     {/* Totals Summary */}
                     {paymentAmount > 0 && (
-                        <Card className={(totalApplied > paymentAmount || paymentAmount > totalAvailableBalance) ? 'border-red-500' : 'border-green-500'}>
+                        <Card className={hasErrors() ? 'border-red-500' : 'border-green-500'}>
                             <CardContent className="pt-4">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
@@ -438,26 +450,40 @@ export function RecordPaymentModal({ isOpen, onClose, clientId, projectId }: Rec
                                     </div>
                                     <div className="border-t pt-2 flex justify-between text-sm font-bold">
                                         <span>{t('Remaining Unapplied')}:</span>
-                                        <span className={remainingUnapplied < 0 ? 'text-red-600' : 'text-gray-900'}>
+                                        <span className={remainingUnapplied !== 0 ? 'text-red-600' : 'text-green-600'}>
                                             {formatCurrency(remainingUnapplied)}
                                         </span>
                                     </div>
+
+                                    {/* Error: Payment exceeds total available balance */}
                                     {paymentAmount > totalAvailableBalance && (
                                         <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                                             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                                             <span>{t('Payment amount')} ({formatCurrency(paymentAmount)}) {t('exceeds total unpaid balance')} ({formatCurrency(totalAvailableBalance)}). {t('Please reduce the payment amount.')}</span>
                                         </div>
                                     )}
+
+                                    {/* Error: Payment exceeds selected invoices balance */}
+                                    {selectedInvoices.size > 0 && paymentAmount > totalSelectedBalance && paymentAmount <= totalAvailableBalance && (
+                                        <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                            <span>{t('Payment amount')} ({formatCurrency(paymentAmount)}) {t('exceeds selected invoices balance')} ({formatCurrency(totalSelectedBalance)}). {t('Either reduce payment amount or select more invoices.')}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Error: Total applied exceeds payment */}
                                     {totalApplied > paymentAmount && (
                                         <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                                             <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                                             <span>{t('Total applied amount exceeds payment amount')}</span>
                                         </div>
                                     )}
-                                    {remainingUnapplied > 0 && totalApplied > 0 && paymentAmount <= totalAvailableBalance && (
-                                        <div className="flex items-start gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
-                                            <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                                            <span>{t('You have unapplied amount remaining. Consider applying it to another invoice.')}</span>
+
+                                    {/* Error: Unapplied amount remaining */}
+                                    {remainingUnapplied > 0 && selectedInvoices.size > 0 && paymentAmount <= totalAvailableBalance && paymentAmount <= totalSelectedBalance && (
+                                        <div className="flex items-start gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                            <span>{t('All payment amount must be applied to invoices. Remaining unapplied:')} {formatCurrency(remainingUnapplied)}. {t('Please apply the full amount or reduce the payment.')}</span>
                                         </div>
                                     )}
                                 </div>
